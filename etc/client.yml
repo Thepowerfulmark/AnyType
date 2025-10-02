@@ -1,0 +1,63 @@
+id: 68c6d97b9e6a520019f0edec
+networkId: N4J97mT2HC6pAbqYsy7MADZE6C8D3cqRkuRPaHkBoxwwxWFx
+nodes:
+  - addresses:
+      - any-sync-node-1:1001
+      - quic://any-sync-node-1:1011
+      - 172.30.0.12:1001
+      - quic://172.30.0.12:1011
+      - 0.0.0.0:1001
+      - quic://0.0.0.0:1011
+    peerId: 12D3KooW9uiN7tYWC1ZeKnB3rjYRD12eF8uwmgPeE5q15syps5Vy
+    types:
+      - tree
+  - addresses:
+      - any-sync-node-2:1002
+      - quic://any-sync-node-2:1012
+      - 172.30.0.12:1002
+      - quic://172.30.0.12:1012
+      - 0.0.0.0:1002
+      - quic://0.0.0.0:1012
+    peerId: 12D3KooWNjSKRLZxtRqWJ8FH4AzuJYjqCX3UfcUjzaEBSBNFAEHY
+    types:
+      - tree
+  - addresses:
+      - any-sync-node-3:1003
+      - quic://any-sync-node-3:1013
+      - 172.30.0.12:1003
+      - quic://172.30.0.12:1013
+      - 0.0.0.0:1003
+      - quic://0.0.0.0:1013
+    peerId: 12D3KooWPTDfz26TvvgtMoD2Cpkivk9SCkAXzhQfb5QTLuFzmQBJ
+    types:
+      - tree
+  - addresses:
+      - any-sync-coordinator:1004
+      - quic://any-sync-coordinator:1014
+      - 172.30.0.12:1004
+      - quic://172.30.0.12:1014
+      - 0.0.0.0:1004
+      - quic://0.0.0.0:1014
+    peerId: 12D3KooWKftvdtEaraRvuSSKGUhJttokCv1jZHQqVovCpWHxgjvi
+    types:
+      - coordinator
+  - addresses:
+      - any-sync-filenode:1005
+      - quic://any-sync-filenode:1015
+      - 172.30.0.12:1005
+      - quic://172.30.0.12:1015
+      - 0.0.0.0:1005
+      - quic://0.0.0.0:1015
+    peerId: 12D3KooWDeL8pro8LyAiUXCyYvsBpPP85qTDGjTr7Ftg9GdvKsau
+    types:
+      - file
+  - addresses:
+      - any-sync-consensusnode:1006
+      - quic://any-sync-consensusnode:1016
+      - 172.30.0.12:1006
+      - quic://172.30.0.12:1016
+      - 0.0.0.0:1006
+      - quic://0.0.0.0:1016
+    peerId: 12D3KooWNCtBFhFGyChLhxCb86CGQtfVY4T5rHTRLHqTaSCbBBV8
+    types:
+      - consensus
