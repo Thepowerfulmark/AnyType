@@ -1,10 +1,10 @@
 # Runtime. Created by `make start`. Do not commit.
-.env
-.env.override
+/.env
+/.env.override
 
-# Network identity and service data. Losing these means a new network.
-etc/
-storage/
+# Generated network identity and service data. Templates live in docker-generateconfig/etc/.
+/etc/
+/storage/
 
 # Local test leftovers
 backup/
