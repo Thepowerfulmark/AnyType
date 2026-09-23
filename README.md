@@ -1,74 +1,96 @@
-# Self-hosted Anytype sync network
+# Self-hosted сеть Anytype
 
-Self-hosted [Anytype](https://anytype.io) sync network on one Linux host: Docker Compose, persistent data, and a network identity that survives restart and migration.
+Один Linux-хост поднимает свою сеть синхронизации [Anytype](https://anytype.io): Docker Compose, данные на диске и идентичность сети, которая переживает перезапуск и переезд.
 
-The original base is [anyproto/any-sync-dockercompose](https://github.com/anyproto/any-sync-dockercompose) (MIT, see [LICENSE.md](LICENSE.md) and [docs/original-base.md](docs/original-base.md)). Compose, image build, config generation and the upstream changelog are that project. This tree adds one operational rule: if `etc/client.yml` already exists, config generation does not overwrite `etc/`. That keeps the same network after a restore.
+Оригинальная база — [anyproto/any-sync-dockercompose](https://github.com/anyproto/any-sync-dockercompose) (MIT, [LICENSE.md](LICENSE.md), [docs/original-base.md](docs/original-base.md)). Compose, сборка образов генерации, шаблоны конфигов и changelog — оттуда. Здесь добавлено одно правило: если `etc/client.yml` уже есть, генерация не перезаписывает `etc/`. После восстановления из бэкапа сеть остаётся той же.
 
-## What runs
+## Как устроено
 
-| Service | Role | Published by default |
-|---|---|---|
-| any-sync-node-1..3 | Object sync | TCP 1001–1003, UDP 1011–1013 |
-| any-sync-coordinator | Network coordination | TCP 1004, UDP 1014 |
-| any-sync-filenode | File storage (MinIO) | TCP 1005, UDP 1015 |
-| any-sync-consensusnode | Consensus | TCP 1006, UDP 1016 |
-| mongo-1 | Coordinator database | `127.0.0.1:27001` only |
-| redis | Filenode index | `127.0.0.1:6379` only |
-| minio | Filenode blobs | console `127.0.0.1:9001` |
+Клиент Anytype подключается не к публичной сети Anytype, а к этому хосту. Файл `etc/client.yml` говорит клиенту, какие узлы и по каким адресам доступны.
 
-Mongo, Redis and the MinIO console stay on localhost. Sync ports are published on the host and must be reachable by clients.
+```text
+клиент Anytype
+    |  etc/client.yml
+    v
+node-1..3          coordinator          filenode           consensus
+объекты            вход в сеть          файлы              согласование
+    |                  |                    |                  |
+    |                  v                    v                  |
+    |               MongoDB              Redis + MinIO         |
+    +---------------- идентичность в etc/ --------------------+
+                         данные в storage/
+```
 
-Details: [docs/architecture.md](docs/architecture.md). Day-2 operations: [docs/operations.md](docs/operations.md).
+- **node-1..3** хранят и синхронизируют объекты.
+- **coordinator** регистрирует сеть. Его база — MongoDB, один узел replica set `rs0`.
+- **filenode** кладёт файлы в MinIO, служебные данные — в Redis.
+- **consensus** вместе с coordinator согласует изменения. Общий ключ сети им выдаёт генерация при первом старте.
 
-## Requirements
+Образы — `ghcr.io/anyproto/any-sync-*`. Каналы `prod` и `stage1` при `make start` превращаются в совместимые теги. Конкретный тег остаётся как есть.
 
-- Linux with Docker Engine and Compose v2 (`docker compose`)
-- Outbound HTTPS, so image tags for `prod` / `stage1` can be resolved
-- A public IP or DNS name that clients can reach
-- Firewall openings for the TCP and UDP ports above
+Mongo, Redis и консоль MinIO слушают только localhost. Порты синхронизации открыты на хосте, их должны видеть клиенты.
 
-## First start
+| Сервис | По умолчанию |
+|---|---|
+| node-1..3 | TCP 1001–1003, UDP 1011–1013 |
+| coordinator | TCP 1004, UDP 1014 |
+| filenode | TCP 1005, UDP 1015 |
+| consensus | TCP 1006, UDP 1016 |
+| mongo | `127.0.0.1:27001` |
+| redis | `127.0.0.1:6379` |
+| консоль MinIO | `127.0.0.1:9001` |
+
+Подробнее: [docs/architecture.md](docs/architecture.md). Эксплуатация: [docs/operations.md](docs/operations.md).
+
+## Что нужно
+
+- Linux, Docker Engine и Compose v2 (`docker compose`)
+- Исходящий HTTPS, чтобы подтянуть теги `prod` / `stage1`
+- Адрес, который видят клиенты
+- Открытые TCP и UDP порты из таблицы выше
+
+## Первый запуск
 
 ```bash
 cp .env.override.example .env.override
-# set EXTERNAL_LISTEN_HOSTS to this host's address
+# в EXTERNAL_LISTEN_HOSTS — адрес этого хоста
 make start
 ```
 
 `make start`:
 
-1. Builds a small image and writes `.env` from `.env.default` plus `.env.override`.
-2. Generates `etc/` and `etc/client.yml` on the first run.
-3. Starts the stack.
+1. Собирает маленький образ и пишет `.env` из `.env.default` и `.env.override`.
+2. При первом запуске создаёт `etc/` и `etc/client.yml`.
+3. Поднимает стек.
 
-Upload `etc/client.yml` into the Anytype client as the self-hosted network config: [Anytype self-hosting](https://doc.anytype.io/anytype-docs/data-and-security/self-hosting#switching-between-networks).
+`etc/client.yml` загружается в клиент Anytype как конфиг self-hosted сети: [документация Anytype](https://doc.anytype.io/anytype-docs/data-and-security/self-hosting#switching-between-networks).
 
-Do not edit `.env` by hand. The next `make start` regenerates it. Put changes in `.env.override`.
+`.env` руками не правят: следующий `make start` его перезапишет. Изменения кладут в `.env.override`.
 
-## Same network after a move
+## Та же сеть после переезда
 
-Clients stay on the same spaces only if both of these are restored:
+Клиенты останутся в тех же пространствах, только если восстановлены оба каталога:
 
-- `storage/` — Mongo, Redis, MinIO and node data
-- `etc/` — node configs and `etc/client.yml`
+- `storage/` — Mongo, Redis, MinIO и данные нод
+- `etc/` — конфиги и `etc/client.yml`
 
-If `etc/client.yml` is missing, the next start creates a new network. Old clients will not see the old spaces.
+Нет `etc/client.yml` — следующий старт создаст новую сеть. Старые клиенты старые пространства не увидят.
 
-When the host address changes, do not delete `etc/`. `make start` will not rewrite an existing `etc/client.yml`. Update the listen addresses in `etc/` and keep the peer ids and signing keys. See [docs/operations.md](docs/operations.md).
+Смена адреса не переписывает уже созданный `etc/client.yml`. `etc/` не удалять. Адреса в существующих файлах `etc/` правят вручную, peer id и ключи подписи оставляют. Подробности в [docs/operations.md](docs/operations.md).
 
-## Commands
+## Команды
 
 ```bash
-make start     # generate .env if needed, then up -d
-make stop      # stop containers, keep data
-make down      # remove containers, keep storage/ and etc/
+make start     # .env и up -d
+make stop      # остановить, данные на месте
+make down      # убрать контейнеры, storage/ и etc/ остаются
 make logs
 make restart   # down + start
-make update    # pull images, down, start
+make update    # pull, down, start
 ```
 
-`make clean` runs `docker system prune --all --volumes` on the whole Docker host. Do not use it on a machine that has other containers. `make cleanEtcStorage` deletes `etc/` and `storage/` and creates a new network.
+`make clean` делает `docker system prune --all --volumes` на всём Docker хоста. На машине с другими контейнерами его не запускать. `make cleanEtcStorage` удаляет `etc/` и `storage/` и тем самым создаёт новую сеть.
 
-## What this repository does not contain
+## Чего в репозитории нет
 
-Generated network keys (`etc/`), service data (`storage/`) and the local `.env` / `.env.override` are gitignored. Commit only the templates: `.env.default` and `.env.override.example`.
+Сгенерированные ключи (`etc/`), данные сервисов (`storage/`) и локальные `.env` / `.env.override` в gitignore. В репозитории только шаблоны: `.env.default` и `.env.override.example`.
