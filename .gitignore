@@ -1,0 +1,10 @@
+# Runtime. Created by `make start`. Do not commit.
+.env
+.env.override
+
+# Network identity and service data. Losing these means a new network.
+etc/
+storage/
+
+# Local test leftovers
+backup/
